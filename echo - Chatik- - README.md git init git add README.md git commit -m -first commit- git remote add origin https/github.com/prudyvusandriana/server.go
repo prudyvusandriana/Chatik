@@ -28,29 +28,35 @@ type Chatik struct {
 func (cs *Chatik) Run() {
 	for {
 		select {
-		case user := <-cs.Join:
-			cs.Users[user.Name] = user
+		case user := <-chat.join:
+			chat.users.mux.Lock()
+			chat.users.allUsers[user.nickname] = user
 			go func() {
 				cs.Input <- Message{
 					Username: "Admin",
-					Text:     fmt.Sprintf("%s joined", user.Name),
+					Text:     fmt.Sprintf("%s joined Chatik ", user.Name),
 				}
 			}()
+			chat.users.mux.Unlock()
 		case user := <-cs.Leave:
-			delete(cs.Users, user.Name)
+			chat.users.mux.Lock()
+			delete(chat.users.allUsers, user.nickname)
 			go func() {
 				cs.Input <- Message{
 					Username: "Admin",
-					Text:     fmt.Sprintf("%s left", user.Name),
+					Text:     fmt.Sprintf("%s left Chatik", user.Name),
 				}
 			}()
+			chat.users.mux.Unlock()
 		case msg := <-cs.Input:
+			chat.users.mux.Lock()
 			for _, user := range cs.Users {
 				select {
 				case user.Output <- msg:
 				default:
 				}
 			}
+			chat.users.mux.Unlock()
 		}
 	}
 }
